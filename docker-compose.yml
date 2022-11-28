@@ -1,0 +1,55 @@
+version: '3'
+
+services:
+  db:
+    image: postgres:12
+    restart: always
+    volumes:
+      - ./data:/data/db
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: MKS
+    ports:
+      - 5433:5432
+
+  redis:
+    hostname: redis
+    image: redis:4.0.10-alpine
+    volumes:
+      - ./data:/var/lib/redis
+    command: redis-server --appendonly yes
+    ports:
+      - '6379:6379'
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+      - HTTP_USER=root
+      - HTTP_PASSWORD=qwerty
+    ports:
+      - 8082:8081
+    depends_on:
+      - redis
+
+  app:
+    image: node:16-alpine
+    working_dir: /home/node/app
+    restart: always
+    depends_on:
+      - 'db'
+      - 'redis'
+    # command: ash -c "yarn install --production && yarn start"
+    command: ash -c "yarn start"
+    volumes:
+      - ./build:/home/node/app/build/
+      - ./.env:/home/node/app/.env
+      - ./data/:/home/node/app/data/
+      - ./package.json:/home/node/app/package.json
+      - ./node_modules:/home/node/app/node_modules/
+    ports:
+      - '3003:3003'
+      - '9222:9222'
+    links:
+      - db
